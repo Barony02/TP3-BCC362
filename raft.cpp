@@ -464,9 +464,9 @@ void raft::applyLogToStateMachine(LogEntry entry) {
     
     // Lista fixa dos 3 nós do Cluster Store (porta 9001, 9002, 9003)[cite: 1]
     std::vector<NodeInfo> storeCluster = {
-        NodeInfo(1, 9001, "10.128.0.4"),
-        NodeInfo(2, 9002, "10.128.0.5"),
-        NodeInfo(3, 9003, "10.128.0.6")
+        NodeInfo(1, 9001, "10.128.0.8"), 
+        NodeInfo(2, 9002, "10.128.0.7"), 
+        NodeInfo(3, 9003, "10.128.0.9")  
     };
 
     QuorumClient storeClient(storeCluster);
