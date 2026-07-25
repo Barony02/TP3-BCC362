@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
         std::string key = recursos[resourceDist(gen)];
         std::string value = "Novo_Valor_Req_" + std::to_string(i);
 
-        ClientInfo clientInfo(clientPort, "127.0.0.1", clientId);
+        ClientInfo clientInfo(clientPort, "10.128.0.10", clientId);
         ClientCommand cmd(clientInfo, Operation::WRITE, key, value);
 
         std::cout << "[Req " << i << "/" << numRequests << "] Enviando para Nó Raft " << targetNode.getid() 
