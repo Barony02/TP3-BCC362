@@ -17,7 +17,7 @@ public:
     void setid(int ID){id = ID;}
     void setport(int Port) {port = Port;}
     void setaddress(std::string addr){address = addr;}
-    int getid(){return id;}
+    int getid() const {return id;}
     int getport() const {return port;}
     std::string getaddress() const {return address;}
 
