@@ -2,4 +2,4 @@
 testeClient/*
 testeSERVER/*
 *.o
-bin/*
+bin/
