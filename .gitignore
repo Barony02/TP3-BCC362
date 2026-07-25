@@ -1,0 +1,4 @@
+.vscode
+testeClient/*
+testeSERVER/*
+*.o
