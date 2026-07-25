@@ -11,41 +11,26 @@ StoreResponse QuorumClient::sendToNode(const NodeInfo& node, const std::string& 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return {false, -1, ""};
 
-    int flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-
-    sockaddr_in server{};
-    server.sin_family = AF_INET;
-    server.sin_port = htons(node.getport());
-    inet_pton(AF_INET, node.getaddress().c_str(), &server.sin_addr);
-
-    int res = connect(sock, (sockaddr*)&server, sizeof(server));
-    if (res < 0 && errno != EINPROGRESS) {
-        close(sock);
-        return {false, -1, ""};
-    }
-
-    if (res < 0) {
-        struct pollfd pfd;
-        pfd.fd = sock;
-        pfd.events = POLLOUT;
-        int ret = poll(&pfd, 1, 1000);
-        if (ret <= 0) {
-            close(sock);
-            return {false, -1, ""};
-        }
-    }
-
-    fcntl(sock, F_SETFL, flags);
-
+    // Define timeout padrão
     struct timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
 
+    sockaddr_in server{};
+    server.sin_family = AF_INET;
+    server.sin_port = htons(node.getport());
+    inet_pton(AF_INET, node.getaddress().c_str(), &server.sin_addr);
+
+    // Tenta conexão direta com timeout do SO
+    if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
+        close(sock);
+        return {false, -1, ""};
+    }
+
     char type = isWrite ? 'W' : 'R';
-    send(sock, &type, 1, 0);
+    if (send(sock, &type, 1, 0) <= 0) { close(sock); return {false, -1, ""}; }
 
     int keySize = key.size();
     send(sock, &keySize, sizeof(keySize), 0);
@@ -63,13 +48,13 @@ StoreResponse QuorumClient::sendToNode(const NodeInfo& node, const std::string& 
     int respValSize = 0;
     std::string respValue = "";
 
-    if (recv(sock, &ok, sizeof(ok), 0) > 0 && ok) {
-        recv(sock, &respVersion, sizeof(respVersion), 0);
+    if (recv(sock, &ok, sizeof(ok), MSG_WAITALL) > 0 && ok) {
+        recv(sock, &respVersion, sizeof(respVersion), MSG_WAITALL);
         if (!isWrite) {
-            recv(sock, &respValSize, sizeof(respValSize), 0);
+            recv(sock, &respValSize, sizeof(respValSize), MSG_WAITALL);
             if (respValSize > 0) {
                 respValue.resize(respValSize);
-                recv(sock, &respValue[0], respValSize, 0);
+                recv(sock, &respValue[0], respValSize, MSG_WAITALL);
             }
         }
     }
