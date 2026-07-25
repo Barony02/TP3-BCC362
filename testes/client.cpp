@@ -42,12 +42,12 @@ int main(int argc, char* argv[]) {
 
     // Mapeia os 3 Nós do Cluster Sync (Raft)[cite: 1, 9]
     std::vector<NodeInfo> raftCluster = {
-        NodeInfo(1, 8001, "10.128.0.8"),
-        NodeInfo(2, 8002, "10.128.0.7"),
-        NodeInfo(3, 8003, "10.128.0.9"),
-        NodeInfo(4, 8004, "10.128.0.11"), 
-        NodeInfo(5, 8005, "10.128.0.12")
-};
+        NodeInfo(1, 8001, "34.173.212.67"),
+        NodeInfo(2, 8002, "34.173.166.203"),
+        NodeInfo(3, 8003, "34.60.248.21"),
+        NodeInfo(4, 8004, "34.73.140.137"),
+        NodeInfo(5, 8005, "34.73.156.103")
+    };
 
     Network network;
 
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
         std::string key = recursos[resourceDist(gen)];
         std::string value = "Novo_Valor_Req_" + std::to_string(i);
 
-        ClientInfo clientInfo(clientPort, "10.128.0.10", clientId);
+        ClientInfo clientInfo(clientPort, "35.254.150.248", clientId);
         ClientCommand cmd(clientInfo, Operation::WRITE, key, value);
 
         std::cout << "[Req " << i << "/" << numRequests << "] Enviando para Nó Raft " << targetNode.getid() 

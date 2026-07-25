@@ -22,11 +22,11 @@ int main(int argc, char* argv[]) {
 
     // Mapeamento dos nós do Cluster conforme configurado no client.cpp
     std::vector<NodeInfo> allNodes = {
-        NodeInfo(1, 8001, "10.128.0.8"),
-        NodeInfo(2, 8002, "10.128.0.7"),
-        NodeInfo(3, 8003, "10.128.0.9"),
-        NodeInfo(4, 8004, "10.128.0.11"),
-        NodeInfo(5, 8005, "10.128.0.12") 
+        NodeInfo(1, 8001, "34.173.212.67"),
+        NodeInfo(2, 8002, "34.173.166.203"),
+        NodeInfo(3, 8003, "34.60.248.21"),
+        NodeInfo(4, 8004, "34.73.140.137"),
+        NodeInfo(5, 8005, "34.73.156.103")
     };
 
     // Descobre qual é a minha porta baseada no ID
