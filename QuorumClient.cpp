@@ -2,6 +2,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <algorithm>
 #include <iostream>
 
@@ -9,22 +11,38 @@ StoreResponse QuorumClient::sendToNode(const NodeInfo& node, const std::string& 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return {false, -1, ""};
 
-    // Timeout de 1 segundo para suportar simulação de falha por queda/omissão do enunciado[cite: 1]
-    struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
-    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 
     sockaddr_in server{};
     server.sin_family = AF_INET;
     server.sin_port = htons(node.getport());
     inet_pton(AF_INET, node.getaddress().c_str(), &server.sin_addr);
 
-    if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
+    int res = connect(sock, (sockaddr*)&server, sizeof(server));
+    if (res < 0 && errno != EINPROGRESS) {
         close(sock);
         return {false, -1, ""};
     }
+
+    if (res < 0) {
+        struct pollfd pfd;
+        pfd.fd = sock;
+        pfd.events = POLLOUT;
+        int ret = poll(&pfd, 1, 1000);
+        if (ret <= 0) {
+            close(sock);
+            return {false, -1, ""};
+        }
+    }
+
+    fcntl(sock, F_SETFL, flags);
+
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
 
     char type = isWrite ? 'W' : 'R';
     send(sock, &type, 1, 0);
