@@ -84,19 +84,19 @@ run-store2: $(TARGET_STORE)
 run-store3: $(TARGET_STORE)
 	./$(TARGET_STORE) 9003
 
-# Atalhos para os Nós Raft (Cluster Sync - Portas 8001, 8002, 8003)
+# Atalhos para os Nós Raft (Cluster Sync - Compatível com IPs GCP/Locais)
 run-node1: $(TARGET_CLUSTER)
-	./$(TARGET_CLUSTER) 1 8001 3
+	./$(TARGET_CLUSTER) 1 10.128.0.8
 
 run-node2: $(TARGET_CLUSTER)
-	./$(TARGET_CLUSTER) 2 8002 3
+	./$(TARGET_CLUSTER) 2 10.128.0.7
 
 run-node3: $(TARGET_CLUSTER)
-	./$(TARGET_CLUSTER) 3 8003 3
+	./$(TARGET_CLUSTER) 3 10.128.0.9
 
-# Atalho para rodar o Cliente
+# Atalho para rodar o Cliente (sem parâmetros, pois client.cpp não os requer)
 run-client: $(TARGET_CLIENT)
-	./$(TARGET_CLIENT) 127.0.0.1 8001
+	./$(TARGET_CLIENT)
 
 # Limpeza de artefatos de compilação
 clean:
@@ -110,8 +110,8 @@ help:
 	@echo "  make run-store1 - Inicia o Nó Store 1 na porta 9001"
 	@echo "  make run-store2 - Inicia o Nó Store 2 na porta 9002"
 	@echo "  make run-store3 - Inicia o Nó Store 3 na porta 9003"
-	@echo "  make run-node1  - Inicia o Nó Raft 1 na porta 8001"
-	@echo "  make run-node2  - Inicia o Nó Raft 2 na porta 8002"
-	@echo "  make run-node3  - Inicia o Nó Raft 3 na porta 8003"
-	@echo "  make run-client - Inicia o cliente de testes (alvo: 127.0.0.1 8001)"
+	@echo "  make run-node1  - Inicia o Nó Raft 1 (IP 10.128.0.8)"
+	@echo "  make run-node2  - Inicia o Nó Raft 2 (IP 10.128.0.7)"
+	@echo "  make run-node3  - Inicia o Nó Raft 3 (IP 10.128.0.9)"
+	@echo "  make run-client - Inicia o cliente de testes"
 	@echo "  make clean      - Remove diretórios obj/ e bin/"
