@@ -94,6 +94,12 @@ run-node2: $(TARGET_CLUSTER)
 run-node3: $(TARGET_CLUSTER)
 	./$(TARGET_CLUSTER) 3 10.128.0.9
 
+run-node4: $(TARGET_CLUSTER)
+	./$(TARGET_CLUSTER) 4 10.128.0.11
+
+run-node5: $(TARGET_CLUSTER)
+	./$(TARGET_CLUSTER) 5 10.128.0.12
+
 # Atalho para rodar o Cliente (sem parâmetros, pois client.cpp não os requer)
 run-client: $(TARGET_CLIENT)
 	./$(TARGET_CLIENT)

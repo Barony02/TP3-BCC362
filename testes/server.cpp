@@ -24,7 +24,9 @@ int main(int argc, char* argv[]) {
     std::vector<NodeInfo> allNodes = {
         NodeInfo(1, 8001, "10.128.0.8"),
         NodeInfo(2, 8002, "10.128.0.7"),
-        NodeInfo(3, 8003, "10.128.0.9")
+        NodeInfo(3, 8003, "10.128.0.9"),
+        NodeInfo(4, 8004, "10.128.0.11"),
+        NodeInfo(5, 8005, "10.128.0.12") 
     };
 
     // Descobre qual é a minha porta baseada no ID
