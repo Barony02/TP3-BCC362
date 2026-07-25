@@ -462,18 +462,16 @@ void raft::sendHeartbeats() {
 void raft::applyLogToStateMachine(LogEntry entry) {
     ClientCommand cmd = entry.getOperation();
     
-    // Lista fixa dos 3 nós do Cluster Store (porta 9001, 9002, 9003)[cite: 1]
     std::vector<NodeInfo> storeCluster = {
-        NodeInfo(1, 9001, "10.128.0.8"), 
-        NodeInfo(2, 9002, "10.128.0.7"), 
-        NodeInfo(3, 9003, "10.128.0.9")  
+        NodeInfo(1, 9001, "10.128.0.4"), 
+        NodeInfo(2, 9002, "10.128.0.5"), 
+        NodeInfo(3, 9003, "10.128.0.6")  
     };
 
     QuorumClient storeClient(storeCluster);
 
     std::cout << "[Nó Raft " << node.getid() << "] Aplicando comando via Quórum no Cluster Store..." << std::endl;
 
-    // Executa a escrita no Cluster Store via Protocolo 3[cite: 1]
     bool storeSuccess = storeClient.quorumWrite(cmd.getKey(), cmd.getValue());
 
     if (role == Role::LEADER) {
