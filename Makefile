@@ -95,10 +95,10 @@ run-node3: $(TARGET_CLUSTER)
 	./$(TARGET_CLUSTER) 3 10.128.0.9
 
 run-node4: $(TARGET_CLUSTER)
-	./$(TARGET_CLUSTER) 4 10.128.0.11
+	./$(TARGET_CLUSTER) 4 10.142.0.3
 
 run-node5: $(TARGET_CLUSTER)
-	./$(TARGET_CLUSTER) 5 10.128.0.12
+	./$(TARGET_CLUSTER) 5 10.142.0.4
 
 # Atalho para rodar o Cliente (sem parâmetros, pois client.cpp não os requer)
 run-client: $(TARGET_CLIENT)
