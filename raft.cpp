@@ -463,9 +463,9 @@ void raft::applyLogToStateMachine(LogEntry entry) {
     ClientCommand cmd = entry.getOperation();
     
     std::vector<NodeInfo> storeCluster = {
-        NodeInfo(1, 9001, "10.128.0.4"), 
-        NodeInfo(2, 9002, "10.128.0.5"), 
-        NodeInfo(3, 9003, "10.128.0.6")  
+        NodeInfo(1, 9001, "34.72.251.11"), 
+        NodeInfo(2, 9002, "34.46.18.101"), 
+        NodeInfo(3, 9003, "34.57.247.18")  
     };
 
     QuorumClient storeClient(storeCluster);
