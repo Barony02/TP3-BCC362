@@ -96,26 +96,21 @@ int main(int argc, char* argv[]) {
         int totalNodes = raftCluster.size();
 
         // Tenta enviar a requisição rodando pelos nós do cluster até obter uma resposta válida
+        // Em testes/client.cpp
+
         while (!sucesso && tentativas < totalNodes * 2) {
             NodeInfo targetNode = raftCluster[currentTargetIdx];
             tentativas++;
 
-            std::cout << "[Req " << i << "/" << numRequests << "] Tentando enviar para Nó " 
-                      << targetNode.getid() << " (" << targetNode.getaddress() << ":" << targetNode.getport() << ")... ";
+            std::cout << "[Req " << i << "/" << numRequests << "] Enviando para Nó " 
+                    << targetNode.getid() << " (" << targetNode.getaddress() << ":" << targetNode.getport() << ")... " << std::flush;
 
             sendClientCommandStruct sendCmd(targetNode, cmd);
 
             // 1. TENTA ENVIAR O COMANDO
-            // Se o nó estiver morto, createConnection() retorna erro e capturamos aqui
-            try {
-                network.sendClientCommand(sendCmd);
-            } catch (...) {
-                std::cout << "❌ [FALHA DE REDE] Nó " << targetNode.getid() << " inacessível. Redirecionando...\n";
-                currentTargetIdx = (currentTargetIdx + 1) % totalNodes; // Passa para o próximo nó
-                continue;
-            }
+            network.sendClientCommand(sendCmd);
 
-            // 2. AGUARDA RESPOSTA COM TIMEOUT NO ACCEPT
+            // 2. AGUARDA RESPOSTA COM TIMEOUT NO ACCEPT (2 segundos)
             sockaddr_in clientAddr{};
             socklen_t clientLen = sizeof(clientAddr);
             int responseSock = accept(listenfd, (sockaddr*)&clientAddr, &clientLen);
@@ -128,14 +123,13 @@ int main(int argc, char* argv[]) {
                     std::cout << "\n    -> ✅ Resposta do Cluster: " << response->status << std::endl;
                     sucesso = true;
                 } else {
-                    std::cout << "\n    -> ⚠️ Resposta inválida do Nó " << targetNode.getid() << ". Tentando próximo...\n";
+                    std::cout << "\n    -> ⚠️ Resposta inválida/nó inalcançável. Tentando próximo...\n";
                     currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
                 }
-
                 close(responseSock);
             } else {
-                // Caiu no Timeout do accept() (O nó recebeu mas não respondeu, ou o nó caiu no meio do caminho)
-                std::cout << "⏱️ [TIMEOUT] Nó " << targetNode.getid() << " não respondeu. Tentando próximo...\n";
+                // Se deu Timeout (errno == EAGAIN / EWOULDBLOCK), o nó caiu/ignorou. Alterna o nó alvo.
+                std::cout << "⏱️ [TIMEOUT/SEM RESPOSTA] Nó " << targetNode.getid() << " não respondeu. Alternando nó alvo...\n";
                 currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
             }
         }
