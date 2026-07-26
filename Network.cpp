@@ -187,38 +187,30 @@ std::unique_ptr<messageBase> Network::receiveMessage(int clientSock)
 int Network::createConnection(const std::string& ip, int port)
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return -1;
 
-    if(sock < 0)
-    {
-        perror("socket");
-        return -1;
-    }
+    // 1. Configura Timeouts curtos de Envio (SO_SNDTIMEO) e Recebimento (SO_RCVTIMEO)
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 200000; // 200ms de timeout máximo para conexões de rede do Raft
 
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
 
     sockaddr_in server{};
-
     server.sin_family = AF_INET;
     server.sin_port = htons(port);
 
-
-    inet_pton(
-        AF_INET,
-        ip.c_str(),
-        &server.sin_addr
-    );
-
-
-    if(connect(
-        sock,
-        (sockaddr*)&server,
-        sizeof(server)
-    ) < 0)
-    {
-        perror("connect");
+    if (inet_pton(AF_INET, ip.c_str(), &server.sin_addr) <= 0) {
         close(sock);
         return -1;
     }
 
+    // 2. Executa o connect. Se o nó estiver morto, retorna imediatamente em vez de travar
+    if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
+        close(sock);
+        return -1; // Retorna silenciosamente - nó está Offline
+    }
 
     return sock;
 }

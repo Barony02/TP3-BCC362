@@ -32,31 +32,29 @@ void raft::recoverFromCrash()
     sentLength = {};
     ackedLength = {};
 }
-void raft::leaderCrashed()
-{
-    // 1. Incrementa o Termo e muda para Candidato
+void raft::leaderCrashed() {
     currentTerm += 1; 
     role = Role::CANDIDATE;
-    
-    // 2. Vota em si mesmo
     votedFor = node.getid();
     votesReceived.clear();
     votesReceived.insert(node.getid());
-    
-    // 3. Reseta o timer para não tentar uma nova eleição imediatamente
     resetElectionTimeout(); 
 
-    // Agora cria a mensagem com o NOVO Termo
     int lastTerm = 0;
     if (log.getEntries().size() > 0)
         lastTerm = log.getEntries().back().getTerm();
 
     RequestVoteMessage Voterequest(node.getid(), currentTerm, log.getEntries().size(), lastTerm);
 
-    for (auto targetNode : cluster)
-    {
-        if (targetNode.getid() != node.getid()) // Não envia para si mesmo
-            network.sendRequestVote(sendRequestVoteStruct(targetNode, node, Voterequest));
+    for (auto targetNode : cluster) {
+        if (targetNode.getid() != node.getid()) {
+            sendRequestVoteStruct req(targetNode, node, Voterequest);
+            
+            // Dispara a solicitação de voto de forma assíncrona
+            std::thread([this, req]() {
+                this->network.sendRequestVote(req);
+            }).detach();
+        }
     }
 }
 void raft::receiveElectionMessage(RequestVoteMessage msg, NodeInfo candidate)
@@ -441,8 +439,6 @@ void raft::tickerLoop() {
 // Envia heartbeats vazios para manter a autoridade sobre os seguidores
 void raft::sendHeartbeats() {
     for (const auto& follower : cluster) {
-        // Envia uma mensagem AppendEntries vazia (sem sufixo) para atuar como Heartbeat
-        // Ajuste os parâmetros de acordo com o estado do seu Log
         std::vector<LogEntry> emptySuffix;
         int prefixLen = log.getEntries().size();
         int prefixTerm = (prefixLen > 0) ? log.getEntries()[prefixLen - 1].getTerm() : 0;
@@ -456,9 +452,15 @@ void raft::sendHeartbeats() {
             commitLength, 
             emptySuffix
         );
-        network.sendAppendEntries(hb);
+
+        // Dispara o envio em uma thread separada (detach) para que a falha de conexão
+        // de um nó morto não trave os heartbeats dos outros nós ativos
+        std::thread([this, hb]() {
+            this->network.sendAppendEntries(hb);
+        }).detach();
     }
 }
+
 void raft::applyLogToStateMachine(LogEntry entry) {
     ClientCommand cmd = entry.getOperation();
     
