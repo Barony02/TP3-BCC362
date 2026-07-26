@@ -19,8 +19,6 @@ int createListeningSocket(int port) {
     int opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    // TIMEOUT NO ACCEPT: Se o nó selecionado caiu ou não respondeu, 
-    // libera o accept em 2 segundos para tentar o próximo nó do cluster.
     struct timeval tv;
     tv.tv_sec = 2; 
     tv.tv_usec = 0;
@@ -45,7 +43,9 @@ int createListeningSocket(int port) {
 }
 
 int main(int argc, char* argv[]) {
-    // Mapeia os 5 Nós do Cluster Sync (Raft)
+    int clientId = (argc > 1) ? std::stoi(argv[1]) : 999;
+    int clientPort = (argc > 2) ? std::stoi(argv[2]) : 9005;
+
     std::vector<NodeInfo> raftCluster = {
         NodeInfo(1, 8001, "136.65.16.176"),
         NodeInfo(2, 8002, "34.173.86.220"),
@@ -57,21 +57,18 @@ int main(int argc, char* argv[]) {
     Network network;
 
     std::cout << "==========================================" << std::endl;
-    std::cout << " 🖥️ CLIENTE RAFT COM FAILOVER AUTOMÁTICO" << std::endl;
+    std::cout << " 🖥️ CLIENTE " << clientId << " (Porta " << clientPort << ") ONLINE" << std::endl;
     std::cout << "==========================================\n" << std::endl;
 
     std::random_device rd;
-    std::mt19937 gen(rd());
+    std::mt19937 gen(rd() ^ clientId);
     
-    std::uniform_int_distribution<> resourceDist(0, 2);                  // Sortear Recurso A, B ou C[cite: 1]
-    std::uniform_int_distribution<> reqDist(10, 20);                     // Total de requisições
-    std::uniform_int_distribution<> timeDist(1, 3);                      // Intervalo entre envios
+    std::uniform_int_distribution<> resourceDist(0, 2);
+    std::uniform_int_distribution<> reqDist(15, 25);
 
     std::vector<std::string> recursos = {"recurso_A", "recurso_B", "recurso_C"};
     
     int numRequests = reqDist(gen);
-    int clientId = 999; 
-    int clientPort = 9005; // Porta de escuta local do cliente
 
     int listenfd = createListeningSocket(clientPort);
     if (listenfd < 0) {
@@ -79,14 +76,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // O cliente começa tentando o primeiro nó (índice 0)
-    int currentTargetIdx = 0;
+    // Início alternado com base no ID do cliente
+    int currentTargetIdx = clientId % raftCluster.size();
 
     std::cout << "Iniciando bateria de " << numRequests << " requisições...\n" << std::endl;
 
     for (int i = 1; i <= numRequests; ++i) {
         std::string key = recursos[resourceDist(gen)];
-        std::string value = "Novo_Valor_Req_" + std::to_string(i);
+        std::string value = "Val_C" + std::to_string(clientId) + "_Req" + std::to_string(i);
 
         ClientInfo clientInfo(clientPort, "34.70.245.113", clientId);
         ClientCommand cmd(clientInfo, Operation::WRITE, key, value);
@@ -95,22 +92,23 @@ int main(int argc, char* argv[]) {
         int tentativas = 0;
         int totalNodes = raftCluster.size();
 
-        // Tenta enviar a requisição rodando pelos nós do cluster até obter uma resposta válida
-        // Em testes/client.cpp
-
         while (!sucesso && tentativas < totalNodes * 2) {
             NodeInfo targetNode = raftCluster[currentTargetIdx];
             tentativas++;
 
-            std::cout << "[Req " << i << "/" << numRequests << "] Enviando para Nó " 
-                    << targetNode.getid() << " (" << targetNode.getaddress() << ":" << targetNode.getport() << ")... " << std::flush;
+            std::cout << "[Cliente " << clientId << " | Req " << i << "/" << numRequests 
+                      << "] -> Envia para Nó " << targetNode.getid() << "... " << std::flush;
 
             sendClientCommandStruct sendCmd(targetNode, cmd);
 
-            // 1. TENTA ENVIAR O COMANDO
-            network.sendClientCommand(sendCmd);
+            try {
+                network.sendClientCommand(sendCmd);
+            } catch (...) {
+                std::cout << "❌ [FALHA DE REDE]\n";
+                currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
+                continue;
+            }
 
-            // 2. AGUARDA RESPOSTA COM TIMEOUT NO ACCEPT (2 segundos)
             sockaddr_in clientAddr{};
             socklen_t clientLen = sizeof(clientAddr);
             int responseSock = accept(listenfd, (sockaddr*)&clientAddr, &clientLen);
@@ -120,29 +118,32 @@ int main(int argc, char* argv[]) {
                 
                 if (msg && msg->msgtype == messageType::SEND_CLIENT_RESPONSE) {
                     auto response = static_cast<sendClientResponseStruct*>(msg.get());
-                    std::cout << "\n    -> ✅ Resposta do Cluster: " << response->status << std::endl;
+                    std::cout << "✅ [OK] Resposta: " << response->status << std::endl;
                     sucesso = true;
+                    // Alterna o nó alvo para a próxima requisição
+                    currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
                 } else {
-                    std::cout << "\n    -> ⚠️ Resposta inválida/nó inalcançável. Tentando próximo...\n";
+                    std::cout << "⚠️ [Resposta Inválida]. Alternando nó...\n";
                     currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
                 }
                 close(responseSock);
             } else {
-                // Se deu Timeout (errno == EAGAIN / EWOULDBLOCK), o nó caiu/ignorou. Alterna o nó alvo.
-                std::cout << "⏱️ [TIMEOUT/SEM RESPOSTA] Nó " << targetNode.getid() << " não respondeu. Alternando nó alvo...\n";
+                std::cout << "⏱️ [TIMEOUT]. Alternando nó...\n";
                 currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
             }
         }
 
         if (!sucesso) {
-            std::cerr << "❌ [ERRO CRÍTICO] Nenhum nó do cluster respondeu para a Req " << i << "\n";
+            std::cerr << "❌ [ERRO CRÍTICO] Nenhum nó respondeu para a Req " << i << "\n";
+            // Garante rotação mesmo se falhar todas as tentativas
+            currentTargetIdx = (currentTargetIdx + 1) % totalNodes;
         }
     }
 
     close(listenfd);
 
     std::cout << "\n==========================================" << std::endl;
-    std::cout << " Bateria de testes finalizada com sucesso." << std::endl;
+    std::cout << " Cliente " << clientId << " finalizou todas as requisições." << std::endl;
     std::cout << "==========================================" << std::endl;
 
     return 0;
