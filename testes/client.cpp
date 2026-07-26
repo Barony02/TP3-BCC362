@@ -137,12 +137,6 @@ int main(int argc, char* argv[]) {
         if (!sucesso) {
             std::cerr << "❌ [ERRO CRÍTICO] Nenhum nó do cluster respondeu para a Req " << i << "\n";
         }
-
-        if (i < numRequests) {
-            int delay = timeDist(gen);
-            std::cout << "    -> Aguardando " << delay << "s para a próxima requisição...\n\n";
-            std::this_thread::sleep_for(std::chrono::seconds(delay));
-        }
     }
 
     close(listenfd);
